@@ -232,7 +232,7 @@ window.saveItem = id => {
   const g = n => $('#f_' + n).value.trim();
   const it = { id, date: g('date') || today(), source: g('source'), content: g('content'), origin: g('origin'), type: g('type'), tone: g('tone'), mood: +g('mood'),
     inferred: g('inferred'), confirmed: g('confirmed'), accept: g('accept'), status: g('status'), result: g('result'),
-    plan: { when: g('when'), where: g('where'), how: g('how'), due: g('due') } };
+    plan: { when: g('when'), where: g('where'), how: g('how'), due: g('due') }, updated: Date.now() };
   if (!it.content) return alert('피드백 내용을 입력하세요.');
   const i = db.items.findIndex(x => x.id === id);
   i < 0 ? db.items.push(it) : db.items[i] = it;
@@ -326,10 +326,29 @@ window.exp = async () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(file); a.download = name; a.click();
 };
+let pending = null;
 window.imp = f => f && f.text().then(t => {
-  try { const d = JSON.parse(t); if (!Array.isArray(d.items)) throw 0; if (!confirm('현재 데이터를 덮어씁니다. 계속할까요?')) return; db = Object.assign({ items: [], checks: {}, people: [] }, d); save(); render(); }
-  catch { alert('올바른 파일이 아닙니다.'); }
+  try {
+    const d = JSON.parse(t); if (!Array.isArray(d.items)) throw 0;
+    pending = d;
+    const ids = new Set(db.items.map(x => x.id)), added = d.items.filter(x => !ids.has(x.id)).length;
+    modal(`<div class="card"><h2 style="margin-top:0">가져오기</h2>
+      <p>파일에 기록 <b>${d.items.length}건</b>이 있습니다. 이 기기에는 <b>${db.items.length}건</b>이 있고, 그중 새로 추가될 기록은 <b>${added}건</b>입니다.</p>
+      <p class="muted"><b>병합</b>: 양쪽 기록을 모두 남깁니다. 같은 기록은 더 최근에 수정한 쪽을 씁니다. 체크한 매트릭스 항목도 합칩니다.<br><b>덮어쓰기</b>: 이 기기의 데이터를 파일 내용으로 바꿉니다.</p>
+      <div class="row"><button class="btn" onclick="doImport('merge')">병합</button><button class="danger btn" onclick="doImport('replace')">덮어쓰기</button><button class="ghost btn" onclick="closeModal()">취소</button></div></div>`);
+  } catch { alert('올바른 파일이 아닙니다.'); }
 });
+window.doImport = mode => {
+  const d = pending; pending = null; if (!d) return;
+  if (mode === 'replace') db = Object.assign({ items: [], checks: {}, people: [] }, d);
+  else {
+    const map = new Map(db.items.map(x => [x.id, x]));
+    d.items.forEach(x => { const o = map.get(x.id); if (!o || (x.updated || 0) > (o.updated || 0)) map.set(x.id, x); });
+    db.items = [...map.values()];
+    Object.entries(d.checks || {}).forEach(([k, v]) => { if (v) db.checks[k] = true; });
+  }
+  save(); closeModal(); render(true); toast(mode === 'merge' ? '병합했습니다' : '덮어썼습니다');
+};
 
 // ---------- 공통 ----------
 function modal(h) { const m = $('#modal'); m.innerHTML = h; m.hidden = false; }
