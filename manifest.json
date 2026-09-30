@@ -1,0 +1,12 @@
+{
+  "name": "피드백 노트",
+  "short_name": "피드백",
+  "description": "피드백의 양·질·효과를 높이는 3x3 매트릭스 노트",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6f5f1",
+  "theme_color": "#2f6f5e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
